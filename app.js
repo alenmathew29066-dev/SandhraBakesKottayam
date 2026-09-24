@@ -1,30 +1,37 @@
 /**
+ * ============================================================================
  * SANDHRA BAKES – HOMEMADE CAKES, KOTTAYAM
- * Interactive Features, Motion Cursor Animation & Google Form Booking System
+ * Website Interactive Scripts, Motion Cursor & Google Form Booking System
+ * ============================================================================
+ * [CONFIG] CENTRAL GOOGLE FORM CONFIGURATION:
+ * 
+ * Replace the placeholder below with your published Google Form share URL.
+ * Once replaced, EVERY "Order Now", "Book a Cake", and booking button across 
+ * the entire website will automatically open your Google Form in a new tab!
+ * 
+ * Example:
+ * const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSc.../viewform";
+ * 
+ * If left as "PASTE_GOOGLE_FORM_LINK_HERE", clicking any booking button will
+ * politely open the helpful setup guidance modal with instructions and a link to forms.new.
  */
+const GOOGLE_FORM_URL = "https://forms.gle/xJKgekkCB4yArpEN9";
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Set current year in footer
+  // Set current year in footer dynamically
   const yearEl = document.getElementById('currentYear');
   if (yearEl) {
     yearEl.textContent = new Date().getFullYear();
   }
 
-  // Set min date for celebration date input to today
-  const eventDateInput = document.getElementById('eventDate');
-  if (eventDateInput) {
-    const today = new Date().toISOString().split('T')[0];
-    eventDateInput.min = today;
-  }
-
   /* ==========================================================================
-     1. MOTION CURSOR ANIMATION (SMOOTH LERP & HOVER STATES)
+     1. MOTION CURSOR ANIMATION (SMOOTH LERP & HOVER EXPANSION)
      ========================================================================== */
   const cursorDot = document.getElementById('cursorDot');
   const cursorTrail = document.getElementById('cursorTrail');
   const customCursor = document.getElementById('customCursor');
 
-  // Check if fine pointer device (desktop mouse)
+  // Check if pointer device supports fine movement (mouse on desktop)
   const isFinePointer = window.matchMedia('(pointer: fine)').matches;
 
   if (isFinePointer && cursorDot && cursorTrail) {
@@ -43,14 +50,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (customCursor) customCursor.style.opacity = '1';
       }
 
-      // Dot moves instantly with mouse
+      // Dot follows cursor coordinates directly
       cursorDot.style.left = `${mouseX}px`;
       cursorDot.style.top = `${mouseY}px`;
     }, { passive: true });
 
-    // Smooth physics loop for the trailing ring (linear interpolation)
+    // Smooth physics loop for the trailing ring (linear interpolation - lerp)
     function animateCursor() {
-      // Lerp speed factor
       trailX += (mouseX - trailX) * 0.18;
       trailY += (mouseY - trailY) * 0.18;
 
@@ -61,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     animateCursor();
 
-    // Mouse click reaction
+    // Mouse click depression animation
     window.addEventListener('mousedown', () => {
       document.body.classList.add('cursor-clicked');
     });
@@ -81,11 +87,11 @@ document.addEventListener('DOMContentLoaded', () => {
       isVisible = true;
     });
 
-    // Interactive Hover expansion for links, buttons, form inputs and cards
+    // Interactive Hover expansion for links, buttons, cards and clickable elements
     const interactiveSelectors = [
       'a', 'button', 'input', 'select', 'textarea',
       '.category-card', '.fav-card', '.gallery-card', '.feature-card',
-      '.radio-card', '.filter-tab', '.dot', '.slider-btn'
+      '.filter-tab', '.dot', '.slider-btn', '.accordion-trigger', '.field-chip'
     ];
 
     document.querySelectorAll(interactiveSelectors.join(', ')).forEach(el => {
@@ -112,9 +118,9 @@ document.addEventListener('DOMContentLoaded', () => {
       header.classList.remove('scrolled');
     }
 
-    // Active link highlighting based on scroll position
-    let currentSection = '';
-    const scrollPos = window.scrollY + 120;
+    // Active link highlighting based on current scroll position for single-page sections
+    let currentSection = 'hero';
+    const scrollPos = window.scrollY + 140;
 
     sections.forEach(section => {
       const sectionTop = section.offsetTop;
@@ -124,13 +130,45 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    navLinks.forEach(link => {
-      link.classList.remove('active');
-      if (link.getAttribute('href') === `#${currentSection}`) {
-        link.classList.add('active');
+    if (currentSection) {
+      navLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && href.startsWith('#')) {
+          link.classList.toggle('active', href === `#${currentSection}`);
+        }
+      });
+      document.querySelectorAll('.mobile-nav-link').forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && href.startsWith('#')) {
+          link.classList.toggle('active', href === `#${currentSection}`);
+        }
+      });
+    }
+  }, { passive: true });
+
+  // Single-Page Smooth Scrolling for in-page anchors
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+      const targetId = this.getAttribute('href');
+      if (targetId === '#' || targetId === '') return;
+      const targetEl = document.querySelector(targetId);
+      if (targetEl) {
+        e.preventDefault();
+        const headerEl = document.getElementById('siteHeader');
+        const headerHeight = headerEl ? headerEl.offsetHeight : 70;
+        const targetPos = targetEl.getBoundingClientRect().top + window.pageYOffset - headerHeight - 10;
+
+        window.scrollTo({
+          top: targetPos,
+          behavior: 'smooth'
+        });
+
+        // Ensure active nav link state updates immediately on click
+        navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === targetId));
+        document.querySelectorAll('.mobile-nav-link').forEach(l => l.classList.toggle('active', l.getAttribute('href') === targetId));
       }
     });
-  }, { passive: true });
+  });
 
   /* ==========================================================================
      3. MOBILE NAVIGATION DRAWER
@@ -153,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Close drawer when link clicked
+  // Close drawer when any navigation link is tapped
   mobileLinks.forEach(link => {
     link.addEventListener('click', () => {
       toggleMobileMenu(true);
@@ -174,6 +212,17 @@ document.addEventListener('DOMContentLoaded', () => {
      ========================================================================== */
   const revealElements = document.querySelectorAll('.reveal');
 
+  // Immediately reveal elements that are already in or near the viewport on load
+  function revealVisibleElements() {
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    revealElements.forEach(el => {
+      const rect = el.getBoundingClientRect();
+      if (rect.top < vh + 100) {
+        el.classList.add('is-revealed');
+      }
+    });
+  }
+
   if ('IntersectionObserver' in window) {
     const revealObserver = new IntersectionObserver((entries, observer) => {
       entries.forEach(entry => {
@@ -183,14 +232,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     }, {
-      rootMargin: '0px 0px -60px 0px',
-      threshold: 0.1
+      rootMargin: '50px 0px 50px 0px',
+      threshold: 0.05
     });
 
     revealElements.forEach(el => revealObserver.observe(el));
   } else {
     revealElements.forEach(el => el.classList.add('is-revealed'));
   }
+
+  // Trigger immediate visibility check on script execution & load events
+  revealVisibleElements();
+  window.addEventListener('load', revealVisibleElements);
+  window.addEventListener('resize', revealVisibleElements, { passive: true });
+
+  // Failsafe timer: guarantee all elements are visible after 350ms
+  setTimeout(() => {
+    revealElements.forEach(el => el.classList.add('is-revealed'));
+  }, 350);
 
   /* ==========================================================================
      5. GALLERY FILTERING (MASONRY)
@@ -225,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* ==========================================================================
-     6. LIGHTBOX MODAL WITH KEYBOARD & TOUCH SWIPE
+     6. FULLSCREEN LIGHTBOX MODAL WITH TOUCH SWIPE & KEYBOARD
      ========================================================================== */
   const lightbox = document.getElementById('lightboxModal');
   const lightboxImg = document.getElementById('lightboxImg');
@@ -246,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function openLightbox(index) {
     updateActiveGalleryItems();
     if (activeGalleryItems.length === 0) return;
-    
+
     currentImgIndex = (index + activeGalleryItems.length) % activeGalleryItems.length;
     const item = activeGalleryItems[currentImgIndex];
     const highResUrl = item.getAttribute('data-src');
@@ -330,6 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let autoplayTimer = null;
 
   function goToSlide(index) {
+    if (!sliderTrack || slides.length === 0) return;
     currentSlide = (index + slides.length) % slides.length;
     sliderTrack.style.transform = `translateX(-${currentSlide * 100}%)`;
 
@@ -393,248 +453,69 @@ document.addEventListener('DOMContentLoaded', () => {
   startAutoplay();
 
   /* ==========================================================================
-     8. PRE-POPULATING BOOKING FORM FROM CAKE CARDS
+     8. ONLINE CAKE BOOKING & GOOGLE FORM SYSTEM
      ========================================================================== */
-  const enquireCardBtns = document.querySelectorAll('.enquire-card-btn');
-  const cakeTypeSelect = document.getElementById('cakeType');
-  const bookingSection = document.getElementById('booking');
+  const placeholderModal = document.getElementById('gformPlaceholderModal');
+  const modalCloseBtn = document.getElementById('gformModalClose');
+  const modalDismissBtn = document.getElementById('gformModalDismiss');
+  const modalBackdrop = document.getElementById('gformModalBackdrop');
+  const googleFormButtons = document.querySelectorAll('.google-form-btn');
+  const isPlaceholderActive = !GOOGLE_FORM_URL || GOOGLE_FORM_URL === "PASTE_GOOGLE_FORM_LINK_HERE" || GOOGLE_FORM_URL.trim() === "";
 
-  enquireCardBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const cakeType = btn.getAttribute('data-cake');
-      if (cakeTypeSelect && cakeType) {
-        for (let i = 0; i < cakeTypeSelect.options.length; i++) {
-          if (cakeTypeSelect.options[i].value.toLowerCase().includes(cakeType.toLowerCase()) ||
-              cakeType.toLowerCase().includes(cakeTypeSelect.options[i].value.toLowerCase())) {
-            cakeTypeSelect.selectedIndex = i;
-            break;
-          }
-        }
-      }
-      if (bookingSection) {
-        bookingSection.scrollIntoView({ behavior: 'smooth' });
-      }
-    });
+  function openSetupModal() {
+    if (placeholderModal) {
+      placeholderModal.classList.add('is-active');
+      placeholderModal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+
+  function closeSetupModal() {
+    if (placeholderModal) {
+      placeholderModal.classList.remove('is-active');
+      placeholderModal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+  }
+
+  // Wire up every booking button across the entire website
+  googleFormButtons.forEach(btn => {
+    if (isPlaceholderActive) {
+      // If placeholder has not yet been replaced with real link, display guidance modal
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        openSetupModal();
+      });
+    } else {
+      // Update link href directly to the client's published Google Form
+      btn.setAttribute('href', GOOGLE_FORM_URL);
+      btn.setAttribute('target', '_blank');
+      btn.setAttribute('rel', 'noopener noreferrer');
+    }
+  });
+
+  // Modal dismiss handlers
+  if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeSetupModal);
+  if (modalDismissBtn) modalDismissBtn.addEventListener('click', closeSetupModal);
+  if (modalBackdrop) modalBackdrop.addEventListener('click', closeSetupModal);
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && placeholderModal && placeholderModal.classList.contains('is-active')) {
+      closeSetupModal();
+    }
   });
 
   /* ==========================================================================
-     9. GOOGLE FORM INTEGRATION & BOOKING HANDLER
+     9. 17-FIELD CHECKLIST PREVIEW ACCORDION
      ========================================================================== */
-  /**
-   * Google Form Configuration
-   * You can replace this with your exact Google Form ID and entry IDs.
-   * If not modified, the system automatically uses this structure to pre-fill
-   * responses and handle online submissions.
-   */
-  const GOOGLE_FORM_CONFIG = {
-    // Replace with your Google Form ID
-    formId: "1FAIpQLSc-sandhra-bakes-booking-form-kottayam",
-    viewFormUrl: "https://docs.google.com/forms/d/e/1FAIpQLSc-sandhra-bakes-booking-form-kottayam/viewform",
-    formActionUrl: "https://docs.google.com/forms/d/e/1FAIpQLSc-sandhra-bakes-booking-form-kottayam/formResponse",
-    // Field Entry IDs in Google Form:
-    entries: {
-      name: "entry.1000001",
-      phone: "entry.1000002",
-      cakeType: "entry.1000003",
-      size: "entry.1000004",
-      flavour: "entry.1000005",
-      eventDate: "entry.1000006",
-      deliveryType: "entry.1000007",
-      customDesign: "entry.1000008",
-      message: "entry.1000009"
-    }
-  };
+  const accordionTrigger = document.getElementById('checklistAccordionTrigger');
+  const accordionContent = document.getElementById('checklistAccordionContent');
 
-  const bookingForm = document.getElementById('cakeBookingForm');
-  const successAlert = document.getElementById('formSuccessAlert');
-  const alertDismiss = document.getElementById('alertDismiss');
-  const sendWhatsAppBtn = document.getElementById('sendWhatsAppBtn');
-  const submitViaGFormBtn = document.getElementById('submitViaGFormBtn');
-  const openDirectGFormBtn = document.getElementById('openDirectGFormBtn');
-
-  // Helper to extract current form data
-  function getFormData() {
-    return {
-      name: document.getElementById('customerName')?.value.trim() || '',
-      phone: document.getElementById('customerPhone')?.value.trim() || '',
-      cakeType: document.getElementById('cakeType')?.value || '',
-      size: document.getElementById('cakeSize')?.value || '',
-      flavour: document.getElementById('cakeFlavour')?.value || '',
-      eventDate: document.getElementById('eventDate')?.value || '',
-      deliveryType: document.querySelector('input[name="orderType"]:checked')?.value || 'Home Delivery',
-      customDesign: document.getElementById('customDesign')?.value.trim() || '',
-      message: document.getElementById('additionalMessage')?.value.trim() || ''
-    };
-  }
-
-  // Generates a pre-filled Google Form URL with user's choices
-  function generateGoogleFormPreFillUrl() {
-    const data = getFormData();
-    const params = new URLSearchParams();
-    params.append('usp', 'pp_url');
-
-    if (data.name) params.append(GOOGLE_FORM_CONFIG.entries.name, data.name);
-    if (data.phone) params.append(GOOGLE_FORM_CONFIG.entries.phone, data.phone);
-    if (data.cakeType) params.append(GOOGLE_FORM_CONFIG.entries.cakeType, data.cakeType);
-    if (data.size) params.append(GOOGLE_FORM_CONFIG.entries.size, data.size);
-    if (data.flavour) params.append(GOOGLE_FORM_CONFIG.entries.flavour, data.flavour);
-    if (data.eventDate) params.append(GOOGLE_FORM_CONFIG.entries.eventDate, data.eventDate);
-    if (data.deliveryType) params.append(GOOGLE_FORM_CONFIG.entries.deliveryType, data.deliveryType);
-    if (data.customDesign) params.append(GOOGLE_FORM_CONFIG.entries.customDesign, data.customDesign);
-    if (data.message) params.append(GOOGLE_FORM_CONFIG.entries.message, data.message);
-
-    return `${GOOGLE_FORM_CONFIG.viewFormUrl}?${params.toString()}`;
-  }
-
-  // Generates WhatsApp message string
-  function generateWhatsAppMessage() {
-    const data = getFormData();
-    let text = `🎂 *CUSTOM CAKE BOOKING – Sandhra Bakes, Kottayam*\n\n`;
-    if (data.name) text += `👤 *Customer Name*: ${data.name}\n`;
-    if (data.phone) text += `📞 *Phone*: ${data.phone}\n`;
-    if (data.cakeType) text += `🍰 *Cake Type*: ${data.cakeType}\n`;
-    if (data.size) text += `⚖️ *Estimated Weight/Size*: ${data.size}\n`;
-    if (data.flavour) text += `🍯 *Preferred Flavour*: ${data.flavour}\n`;
-    if (data.eventDate) text += `📅 *Celebration Date*: ${data.eventDate}\n`;
-    text += `🚚 *Order Type*: ${data.deliveryType}\n`;
-    if (data.customDesign) text += `🎨 *Design Notes*: ${data.customDesign}\n`;
-    if (data.message) text += `✍️ *Text on Cake / Requests*: ${data.message}\n`;
-    text += `\n_Price range note: ₹1,000 – ₹1,200 (Exact price on confirmation)_`;
-
-    return encodeURIComponent(text);
-  }
-
-  // Form Validation
-  function validateForm() {
-    let isValid = true;
-    const fields = [
-      { id: 'customerName', errorId: 'nameError' },
-      { id: 'customerPhone', errorId: 'phoneError' },
-      { id: 'cakeType', errorId: 'typeError' },
-      { id: 'cakeSize', errorId: 'sizeError' },
-      { id: 'cakeFlavour', errorId: 'flavourError' },
-      { id: 'eventDate', errorId: 'dateError' }
-    ];
-
-    fields.forEach(field => {
-      const el = document.getElementById(field.id);
-      const err = document.getElementById(field.errorId);
-      if (!el.value || el.value === '') {
-        el.classList.add('has-error');
-        if (err) err.classList.add('is-visible');
-        isValid = false;
-      } else {
-        el.classList.remove('has-error');
-        if (err) err.classList.remove('is-visible');
-      }
-    });
-
-    return isValid;
-  }
-
-  // Clear errors on typing
-  ['customerName', 'customerPhone', 'cakeType', 'cakeSize', 'cakeFlavour', 'eventDate'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('input', () => {
-        el.classList.remove('has-error');
-        const err = el.parentElement.querySelector('.form-error');
-        if (err) err.classList.remove('is-visible');
-      });
-      el.addEventListener('change', () => {
-        el.classList.remove('has-error');
-        const err = el.parentElement.querySelector('.form-error');
-        if (err) err.classList.remove('is-visible');
-      });
-    }
-  });
-
-  // Action 1: "Open in Google Form" Button
-  if (submitViaGFormBtn) {
-    submitViaGFormBtn.addEventListener('click', () => {
-      const gFormUrl = generateGoogleFormPreFillUrl();
-      window.open(gFormUrl, '_blank', 'noopener');
-    });
-  }
-
-  // Action 2: Top direct Google Form badge link
-  if (openDirectGFormBtn) {
-    openDirectGFormBtn.addEventListener('click', () => {
-      const gFormUrl = generateGoogleFormPreFillUrl();
-      window.open(gFormUrl, '_blank', 'noopener');
-    });
-  }
-
-  // Action 3: Send via WhatsApp Button
-  if (sendWhatsAppBtn) {
-    sendWhatsAppBtn.addEventListener('click', () => {
-      const encodedMsg = generateWhatsAppMessage();
-      const waUrl = `https://wa.me/917560902165?text=${encodedMsg}`;
-      window.open(waUrl, '_blank', 'noopener');
-    });
-  }
-
-  // Action 4: Form Submit with Google Form Target Sync
-  if (bookingForm) {
-    bookingForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-
-      if (!validateForm()) {
-        const firstError = bookingForm.querySelector('.has-error');
-        if (firstError) firstError.focus();
-        return;
-      }
-
-      // Configure Google Form Action dynamically with field names
-      bookingForm.action = GOOGLE_FORM_CONFIG.formActionUrl;
-
-      // Create or populate hidden input fields mapped to Google Form entries
-      const data = getFormData();
-      const entryMap = [
-        { entry: GOOGLE_FORM_CONFIG.entries.name, value: data.name },
-        { entry: GOOGLE_FORM_CONFIG.entries.phone, value: data.phone },
-        { entry: GOOGLE_FORM_CONFIG.entries.cakeType, value: data.cakeType },
-        { entry: GOOGLE_FORM_CONFIG.entries.size, value: data.size },
-        { entry: GOOGLE_FORM_CONFIG.entries.flavour, value: data.flavour },
-        { entry: GOOGLE_FORM_CONFIG.entries.eventDate, value: data.eventDate },
-        { entry: GOOGLE_FORM_CONFIG.entries.deliveryType, value: data.deliveryType },
-        { entry: GOOGLE_FORM_CONFIG.entries.customDesign, value: data.customDesign },
-        { entry: GOOGLE_FORM_CONFIG.entries.message, value: data.message }
-      ];
-
-      // Remove existing hidden entry inputs if any
-      bookingForm.querySelectorAll('.gform-entry-input').forEach(input => input.remove());
-
-      // Append mapped entry inputs
-      entryMap.forEach(item => {
-        const hiddenInput = document.createElement('input');
-        hiddenInput.type = 'hidden';
-        hiddenInput.name = item.entry;
-        hiddenInput.value = item.value;
-        hiddenInput.classList.add('gform-entry-input');
-        bookingForm.appendChild(hiddenInput);
-      });
-
-      // Submit silently to the hidden iframe target
-      HTMLFormElement.prototype.submit.call(bookingForm);
-
-      // Display customer success confirmation alert
-      if (successAlert) {
-        successAlert.hidden = false;
-        successAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-
-      // Trigger Celebration Confetti Particle Shower!
-      triggerConfetti();
-
-      // Reset form
-      bookingForm.reset();
-    });
-  }
-
-  if (alertDismiss) {
-    alertDismiss.addEventListener('click', () => {
-      successAlert.hidden = true;
+  if (accordionTrigger && accordionContent) {
+    accordionTrigger.addEventListener('click', () => {
+      const isExpanded = accordionTrigger.classList.toggle('is-open');
+      accordionContent.classList.toggle('is-open', isExpanded);
+      accordionTrigger.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
     });
   }
 
@@ -650,10 +531,10 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas.height = window.innerHeight;
 
     const pieces = [];
-    // Botanical Evergreen, Sage, Forest Green, Gold & Champagne palette
+    // Botanical Evergreen, Forest Green, Sage, Gold & Champagne palette
     const colors = ['#235F43', '#40916C', '#C99738', '#E5F3EB', '#2ECC71', '#D4A373', '#15412D'];
 
-    for (let i = 0; i < 95; i++) {
+    for (let i = 0; i < 90; i++) {
       pieces.push({
         x: Math.random() * canvas.width,
         y: Math.random() * -canvas.height * 0.4,
@@ -686,7 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.restore();
       });
 
-      if (elapsed < 3500) {
+      if (elapsed < 3200) {
         animationFrame = requestAnimationFrame(renderConfetti);
       } else {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -695,5 +576,139 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     renderConfetti();
+  }
+
+  // Make triggerConfetti globally accessible if needed for interactive demo
+  window.triggerConfetti = triggerConfetti;
+
+  /* ==========================================================================
+     SCROLL UP ANIMATION & FLOATING BACK TO TOP BUTTON
+     ========================================================================== */
+  const scrollTopBtn = document.getElementById('scrollTopBtn');
+  const scrollRingProgress = document.getElementById('scrollProgressCircle');
+
+  if (scrollTopBtn) {
+    const ringCircumference = 163.36; // 2 * PI * 26
+
+    window.addEventListener('scroll', () => {
+      const scrollTotal = document.documentElement.scrollHeight - window.innerHeight;
+      const currentScroll = window.scrollY;
+
+      if (currentScroll > 320) {
+        scrollTopBtn.classList.add('is-visible');
+      } else {
+        scrollTopBtn.classList.remove('is-visible');
+      }
+
+      // Update progress ring offset
+      if (scrollRingProgress && scrollTotal > 0) {
+        const scrollFraction = Math.min(Math.max(currentScroll / scrollTotal, 0), 1);
+        const dashOffset = ringCircumference * (1 - scrollFraction);
+        scrollRingProgress.style.strokeDashoffset = dashOffset;
+      }
+    }, { passive: true });
+
+    scrollTopBtn.addEventListener('click', () => {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    });
+  }
+
+  /* ==========================================================================
+     GALLERY CATEGORY FILTER TABS (FOR DEDICATED GALLERY PAGE)
+     ========================================================================== */
+  const filterBtns = document.querySelectorAll('.gallery-filter-bar .filter-btn');
+  const galleryCardElements = document.querySelectorAll('.gallery-card[data-category]');
+
+  if (filterBtns.length > 0 && galleryCardElements.length > 0) {
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const filter = btn.getAttribute('data-filter');
+
+        galleryCardElements.forEach(item => {
+          const category = item.getAttribute('data-category');
+          if (filter === 'all' || category === filter || (category && category.includes(filter))) {
+            item.style.display = '';
+            setTimeout(() => {
+              item.style.opacity = '1';
+              item.style.transform = 'translateY(0)';
+            }, 20);
+          } else {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(15px)';
+            setTimeout(() => {
+              item.style.display = 'none';
+            }, 250);
+          }
+        });
+      });
+    });
+  }
+
+  /* ==========================================================================
+     TOP ANNOUNCEMENT BAR ENTRANCE ANIMATION (LEFT-TO-RIGHT STAGGER)
+     ========================================================================== */
+  const announcementBar = document.getElementById('announcementBar') || document.querySelector('.announcement-bar');
+  if (announcementBar) {
+    const triggerAnnouncement = () => {
+      announcementBar.classList.add('is-animated');
+    };
+
+    if ('IntersectionObserver' in window) {
+      const announceObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            triggerAnnouncement();
+            announceObserver.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.05 });
+      announceObserver.observe(announcementBar);
+    } else {
+      triggerAnnouncement();
+    }
+
+    // Immediate triggers to guarantee animation plays on first load
+    triggerAnnouncement();
+    setTimeout(triggerAnnouncement, 60);
+  }
+
+  /* ==========================================================================
+     FEATURE CARDS SECTION ENTRANCE ANIMATION (LEFT-TO-RIGHT STAGGER)
+     ========================================================================== */
+  const highlightStrip = document.getElementById('highlightStrip') || document.querySelector('.highlight-strip');
+  if (highlightStrip) {
+    const triggerStrip = () => {
+      highlightStrip.classList.add('strip-animated');
+    };
+
+    if ('IntersectionObserver' in window) {
+      const stripObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            triggerStrip();
+            stripObserver.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.05, rootMargin: '50px 0px 50px 0px' });
+      stripObserver.observe(highlightStrip);
+    } else {
+      triggerStrip();
+    }
+
+    // Check if highlight strip is already in or near viewport
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const stripRect = highlightStrip.getBoundingClientRect();
+    if (stripRect.top < vh + 100) {
+      triggerStrip();
+    }
+
+    // Failsafe timer: guarantee cards animate into view
+    setTimeout(triggerStrip, 350);
   }
 });
